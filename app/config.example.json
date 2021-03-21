@@ -1,0 +1,19 @@
+{
+  "s3": {
+    "ak": "AK",
+    "sk": "SK",
+    "endpoint": "https://foo.bar",
+    "region": "minio",
+    "minioCompatibility": true,
+    "bucket": "s3-sync"
+  },
+  "folderPairs": [{
+    "name": "folder1",
+    "local": "C:\\Users\\folder1",
+    "remote": "folder1-sync"
+  }, {
+    "name": "folder2",
+    "local": "C:\\Users\\folder2",
+    "remote": "folder2-sync"
+  }]
+}

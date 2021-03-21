@@ -1,7 +1,6 @@
-const s3Service = require('./lib/s3');
-const localService = require('./lib/local');
-const yargs = require('yargs/yargs');
 
+const yargs = require('yargs/yargs');
+const { syncFolderPair} = require('./lib/core.js');
 const path = require('path');
 const fs = require('fs');
 
@@ -9,7 +8,7 @@ function readConfig(cfgPath) {
   try {
     const content = fs.readFileSync(path.join(__dirname, cfgPath));
     const cfg = JSON.parse(content);
-    if (!cfg.s3 || !cfg.local || !cfg.remote) {
+    if (!cfg.s3 || !cfg.folderPairs) {
       throw new Error('not valid config file');
     }
     return cfg;
@@ -17,8 +16,8 @@ function readConfig(cfgPath) {
     console.log(e.toString());
     return null;
   }
-
 }
+
 
 async function main() {
   const argv = yargs(process.argv.slice(2))
@@ -29,10 +28,11 @@ async function main() {
   if (!config) {
     return;
   }
-
-  const s3 = new s3Service(config.s3, config.remote);
-  const local = new localService(config.local);
-
+  for (let i = 0; i < config.folderPairs.length; i += 1) {
+    console.log(`Sync [${config.folderPairs[i].name}]`);
+    await syncFolderPair(config.s3, config.folderPairs[i]);
+    console.log('Done');
+  }
 }
 
 main();
