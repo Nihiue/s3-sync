@@ -33,6 +33,7 @@ async function main() {
     await syncFolderPair(config.s3, config.folderPairs[i]);
     console.log('Done \n');
   }
+  setTimeout(() => {}, 3000);
 }
 
 main();
