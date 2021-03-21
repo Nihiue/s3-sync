@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "aws-sdk": "^2.862.0",
+    "dayjs": "^1.10.4",
     "yargs": "^16.2.0"
   }
 }

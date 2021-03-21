@@ -31,7 +31,7 @@ async function main() {
   for (let i = 0; i < config.folderPairs.length; i += 1) {
     console.log(`Sync [${config.folderPairs[i].name}]`);
     await syncFolderPair(config.s3, config.folderPairs[i]);
-    console.log('Done');
+    console.log('Done \n');
   }
 }
 

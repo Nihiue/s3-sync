@@ -1,36 +1,34 @@
-const { sizeString } = require('./utils');
+const { sizeString, formatDate } = require('./utils');
 const S3Service = require('./s3');
 const LocalService = require('./local');
 
-function resolveConflict(localFiles, remoteFiles) {
-  localFiles.forEach(p => {
-    const matched = remoteFiles.find(r => r.posix === p.posix);
-    if (matched) {
-      p.ref = matched;
-      matched.ref = p;
-    }
-  });
-
-  const conflict = localFiles.filter(p => p.ref);
-
-  for (let i = 0; i < conflict.length; i += 1) {
-    const localFile = conflict[i];
-    const remoteRef = localFile.ref;
-
-    if (remoteRef.meta.modified === localFile.meta.modified && remoteRef.meta.size === localFile.meta.size) {
-      localFile.action = "==";
-    } else {
-      localFile.action = remoteRef.meta.modified >= localFile.meta.modified ? '<<' : '>>';
-    }
+function print(action, localFile, remoteFile) {
+  const line = [];
+  if (localFile) {
+    // line.push(formatDate(localFile.meta.modified * 1000));
+    line.push(sizeString(localFile.meta.size).padEnd(4));
+  } else {
+    // line.push('NA'.padEnd(11));
+    line.push('N/A'.padEnd(4));
   }
-}
+  line.push(action);
 
-function printAction(file, symbol, local, remote) {
-  console.log(`  ${local.padEnd(6)}    ${symbol}    ${remote.padEnd(6)}    ${file}`);
+  if (remoteFile) {
+    // line.push(formatDate(remoteFile.meta.modified * 1000));
+    line.push(sizeString(remoteFile.meta.size).padStart(4));
+  } else {
+    // line.push('NA'.padStart(11));
+    line.push('N/A'.padStart(4));
+  }
+  line.push((localFile || remoteFile).posix);
+  console.log(`  ${line.join('  ')}`);
 }
 
 async function runAction(action, local, remote, localFile, remoteFile) {
   let data;
+
+  print(action, localFile, remoteFile);
+
   switch (action) {
     case '>>':
       data = await local.read(localFile);
@@ -39,6 +37,8 @@ async function runAction(action, local, remote, localFile, remoteFile) {
     case '<<':
       data = await remote.read(remoteFile);
       await local.write(remoteFile.posix, data, remoteFile.meta.modified)
+      break;
+    case '==':
       break;
   }
 }
@@ -50,26 +50,32 @@ async function syncFolderPair(s3Config, syncConfig) {
   const remoteFiles = await remote.list({ meta: true });
   const localFiles = await local.list({ meta: true });
 
-  resolveConflict(localFiles, remoteFiles);
-  printAction('File', '  ', 'Local', 'Remote');
+  localFiles.forEach(localFile => {
+    const remoteFile = remoteFiles.find(r => r.posix === localFile.posix);
+    if (remoteFile) {
+      localFile.ref = remoteFile;
+      remoteFile.ref = localFile;
+
+      if (remoteFile.meta.modified === localFile.meta.modified && remoteFile.meta.size === localFile.meta.size) {
+        localFile.action = "==";
+      } else {
+        localFile.action = remoteFile.meta.modified >= localFile.meta.modified ? '<<' : '>>';
+      }
+    } else {
+      localFile.action = '>>';
+    }
+  });
 
   for (let i = 0; i < localFiles.length; i += 1) {
     const localFile = localFiles[i];
-    if (!localFile.ref || localFile.action === '>>') {
-      printAction(localFile.posix, '>>', sizeString(localFile.meta.size), localFile.ref ? sizeString(localFile.ref.meta.size) : 'N/A');
-      await runAction('>>', local, remote, localFile, localFile.ref);
-    } else if (localFile.action === '==') {
-      printAction(localFile.posix, '==', sizeString(localFile.meta.size), sizeString(localFile.ref.meta.size));
-    }
+    await runAction(localFile.action, local, remote, localFile, localFile.ref);
   }
 
   for (let i = 0; i < remoteFiles.length; i += 1) {
     const remoteFile = remoteFiles[i];
-    if (remoteFile.ref) {
-      continue;
+    if (!remoteFile.ref) {
+      await runAction('<<', local, remote, null, remoteFile);
     }
-    printAction(remoteFile.posix, '<<', 'N/A', sizeString(remoteFile.meta.size));
-    await runAction('<<', local, remote, remoteFile.ref, remoteFile);
   }
 }
 
