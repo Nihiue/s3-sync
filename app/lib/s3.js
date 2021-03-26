@@ -1,5 +1,6 @@
 const AWS = require('aws-sdk');
 const path = require('path').posix;
+const { parallel } = require('./utils');
 
 module.exports = class S3Service {
   constructor(cfg, remote) {
@@ -41,9 +42,9 @@ module.exports = class S3Service {
         };
       });
       if (meta) {
-        for (let i = 0; i < ret.length; i += 1) {
-          ret[i].meta = await this.head(ret[i]);
-        }
+        await parallel(ret, async (obj) => {
+          obj.meta = await this.head(obj);
+        }, 5);
       }
       return ret;
     } catch (e) {
