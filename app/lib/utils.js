@@ -20,31 +20,32 @@ module.exports = {
     }
     return dayjs(d).format('MM-DD HH:mm');
   },
-
   async parallel(jobs, fn, workerCount = 5) {
+    const ret = new Array(jobs.length);
+
     let cursor = 0;
 
     async function worker(workerId) {
+      let currentJob;
       while (cursor < jobs.length) {
         try {
+          currentJob = cursor;
           cursor += 1;
-          await fn(jobs[cursor - 1]);
+          ret[currentJob] = await fn(jobs[currentJob]);
         } catch (e) {
-          console.log(`worker: ${workerId} job: ${cursor - 1}`);
-          console.log(e);
+          console.log(`worker: ${workerId} job: ${currentJob}`, e);
         }
       }
-      // console.log(`worker ${workerId} exit`);
     }
 
     const workers = [];
 
-    for (let i = 0; i < workerCount; i += 1) {
+    for (let i = 0; i < workerCount && i < jobs.length; i += 1) {
       workers.push(worker(i));
     }
 
     await Promise.all(workers);
 
-    return true;
+    return ret;
   }
 };
